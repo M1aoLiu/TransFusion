@@ -120,4 +120,4 @@ data = dict(
         test_mode=True,
         box_type_3d='LiDAR'))
 
-evaluation = dict(interval=1)
+evaluation = dict(interval=5)
