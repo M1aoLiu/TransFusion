@@ -1,35 +1,41 @@
-point_cloud_range = [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0]
+point_cloud_range = [-54.0, -54.0, -5.0, 54.0, 54.0, 3.0] # 点云数据取值范围
 class_names = [
     'car', 'truck', 'construction_vehicle', 'bus', 'trailer', 'barrier',
     'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
-]
-voxel_size = [0.075, 0.075, 0.2]
+] # 类别名称 
+voxel_size = [0.075, 0.075, 0.2] # voxel大小
 out_size_factor = 8
-evaluation = dict(interval=1)
+evaluation = dict(interval=1) # 验证频率
 dataset_type = 'NuScenesDataset'
 data_root = 'data/nuscenes/'
+# 输入数据类型：只使用lidar和camera，不使用毫米波雷达、地图和外参矩阵
 input_modality = dict(
     use_lidar=True,
     use_camera=True,
     use_radar=False,
     use_map=False,
     use_external=False)
-img_scale = (800, 448)
-num_views = 6
+img_scale = (800, 448) # 输入图像大小(下面的MyResize会将输入图像Resize)
+num_views = 6 # 使用相机视角的个数
+# 图像归一化参数
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
+    # 使用lidar数据的前5个维度(xyzr)
     dict(
         type='LoadPointsFromFile',
         coord_type='LIDAR',
         load_dim=5,
         use_dim=[0, 1, 2, 3, 4],
     ),
+    # 使用非关键帧sweeps
     dict(
         type='LoadPointsFromMultiSweeps',
         sweeps_num=10,
         use_dim=[0, 1, 2, 3, 4],
     ),
+    # 加载Annotations
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True),
+    # 加载多视角下拍摄的图像
     dict(type='LoadMultiViewImageFromFiles'),
     # dict(
     #     type='GlobalRotScaleTrans',
@@ -41,12 +47,19 @@ train_pipeline = [
     #     sync_2d=True,
     #     flip_ratio_bev_horizontal=0.5,
     #     flip_ratio_bev_vertical=0.5),
+    # 根据point_cloud_range限定点云数据的取值范围
     dict(type='PointsRangeFilter', point_cloud_range=point_cloud_range),
+    # 根据point_cloud_range限定物体的取值范围
     dict(type='ObjectRangeFilter', point_cloud_range=point_cloud_range),
+    # 根据class_names限定物体类别
     dict(type='ObjectNameFilter', classes=class_names),
+    # 点云点顺序随机打乱
     dict(type='PointShuffle'),
+    # 根据img_scale
     dict(type='MyResize', img_scale=img_scale, keep_ratio=True),
+    # 图像归一化
     dict(type='MyNormalize', **img_norm_cfg),
+    # 填充padding
     dict(type='MyPad', size_divisor=32),
     dict(type='DefaultFormatBundle3D', class_names=class_names),
     dict(type='Collect3D', keys=['points', 'img', 'gt_bboxes_3d', 'gt_labels_3d'])
@@ -64,18 +77,22 @@ test_pipeline = [
         use_dim=[0, 1, 2, 3, 4],
     ),
     dict(type='LoadMultiViewImageFromFiles'),
+    # 多尺寸的数据增强
     dict(
         type='MultiScaleFlipAug3D',
         img_scale=img_scale,
         pts_scale_ratio=1,
-        flip=False,
+        flip=False, # 不翻转
         transforms=[
+            # 世界坐标系下的旋转缩放和平移
             dict(
                 type='GlobalRotScaleTrans',
                 rot_range=[0, 0],
                 scale_ratio_range=[1.0, 1.0],
                 translation_std=[0, 0, 0]),
+            # 3D随即翻转
             dict(type='RandomFlip3D'),
+            # 图像的Resize、归一化和padding
             dict(type='MyResize', img_scale=img_scale, keep_ratio=True),
             dict(type='MyNormalize', **img_norm_cfg),
             dict(type='MyPad', size_divisor=32),
@@ -133,6 +150,7 @@ model = dict(
     #     heads={},
     #     head_convs=-1,
     #     ),
+    # 图像特征提取
     img_backbone=dict(
         type='ResNet',
         depth=50,
@@ -142,13 +160,14 @@ model = dict(
         norm_cfg=dict(type='BN', requires_grad=True),
         norm_eval=True,
         style='pytorch'),
+    # 图像特征融合和增强
     img_neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
         num_outs=5),
     pts_voxel_layer=dict(
-        max_num_points=10,
+        max_num_points=10, # 一个voxel最多10个点
         voxel_size=voxel_size,
         max_voxels=(120000, 160000),
         point_cloud_range=point_cloud_range),
