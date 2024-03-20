@@ -87,8 +87,8 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=2,
-    workers_per_gpu=6,
+    samples_per_gpu=1,
+    workers_per_gpu=0,
     train=dict(
         type='CBGSDataset',
         dataset=dict(
@@ -264,9 +264,10 @@ log_config = dict(
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = None
-load_from = 'checkpoints/fusion_voxel0075_R50.pth'
+# load_from = 'checkpoints/fusion_voxel0075_R50.pth'
+load_from = None
 resume_from = None
 workflow = [('train', 1)]
-gpu_ids = range(0, 8)
+gpu_ids = range(0, 1)
 freeze_lidar_components = True
 find_unused_parameters = True
