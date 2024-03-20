@@ -258,7 +258,7 @@ momentum_config = dict(
 total_epochs = 6
 checkpoint_config = dict(interval=1)
 log_config = dict(
-    interval=50,
+    interval=5,
     hooks=[dict(type='TextLoggerHook'),
            dict(type='TensorboardLoggerHook')])
 dist_params = dict(backend='nccl')
