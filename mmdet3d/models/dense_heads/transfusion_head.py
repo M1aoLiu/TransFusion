@@ -47,8 +47,8 @@ class TransformerDecoderLayer(nn.Module):
         super().__init__()
         self.cross_only = cross_only
         if not self.cross_only:
-            self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.multihead_attn = MultiheadAttention(d_model, nhead, dropout=dropout)
+            self.self_attn = MultiheadAttention(d_model, nhead, dropout=dropout) # self-attn使用多头注意力机制
+        self.multihead_attn = MultiheadAttention(d_model, nhead, dropout=dropout) # cross-attn使用多头注意力机制
         # Implementation of Feedforward model
         self.linear1 = nn.Linear(d_model, dim_feedforward)
         self.dropout = nn.Dropout(dropout)
@@ -149,14 +149,14 @@ class MultiheadAttention(nn.Module):
     def __init__(self, embed_dim, num_heads, dropout=0., bias=True, add_bias_kv=False, add_zero_attn=False, kdim=None,
                  vdim=None):
         super(MultiheadAttention, self).__init__()
-        self.embed_dim = embed_dim
+        self.embed_dim = embed_dim # 编码的维度
         self.kdim = kdim if kdim is not None else embed_dim
         self.vdim = vdim if vdim is not None else embed_dim
         self._qkv_same_embed_dim = self.kdim == embed_dim and self.vdim == embed_dim
 
-        self.num_heads = num_heads
+        self.num_heads = num_heads #使用几个attention头
         self.dropout = dropout
-        self.head_dim = embed_dim // num_heads
+        self.head_dim = embed_dim // num_heads # 每个head处理多少个维度
         assert self.head_dim * num_heads == self.embed_dim, "embed_dim must be divisible by num_heads"
 
         self.in_proj_weight = Parameter(torch.empty(3 * embed_dim, embed_dim))
@@ -648,11 +648,12 @@ class TransFusionHead(nn.Module):
         self.use_sigmoid_cls = loss_cls.get('use_sigmoid', False)
         if not self.use_sigmoid_cls:
             self.num_classes += 1
-        self.loss_cls = build_loss(loss_cls)
-        self.loss_bbox = build_loss(loss_bbox)
-        self.loss_iou = build_loss(loss_iou)
-        self.loss_heatmap = build_loss(loss_heatmap)
-
+        self.loss_cls = build_loss(loss_cls) # 定义分类损失 Focal loss
+        self.loss_bbox = build_loss(loss_bbox) # 定义回归损失 L1 loss
+        # 定义iou损失（匈牙利算法中，回归损失是看投影后2D框中心的距离。没有考虑框的大小。因此额外增加IOU损失）
+        self.loss_iou = build_loss(loss_iou) 
+        self.loss_heatmap = build_loss(loss_heatmap) # 定义热力图损失（算法中需要热力图初始化queries）
+        # 
         self.bbox_coder = build_bbox_coder(bbox_coder)
         self.sampling = False
 
@@ -685,21 +686,21 @@ class TransFusionHead(nn.Module):
                 padding=1,
                 bias=bias,
             ))
-            self.heatmap_head = nn.Sequential(*layers)
+            self.heatmap_head = nn.Sequential(*layers) # 热力图，输出和原始图像大小相同的通道为10（类别数）的矩阵
             self.class_encoding = nn.Conv1d(num_classes, hidden_channel, 1)
         else:
             # query feature
             self.query_feat = nn.Parameter(torch.randn(1, hidden_channel, self.num_proposals))
             self.query_pos = nn.Parameter(torch.rand([1, self.num_proposals, 2]), requires_grad=learnable_query_pos)
 
-        # transformer decoder layers for object query with LiDAR feature
+        # transformer decoder layers for object query with LiDAR feature 第一个decoder，用来提取LiDAR特征输出初步预测
         self.decoder = nn.ModuleList()
         for i in range(self.num_decoder_layers):
             self.decoder.append(
-                TransformerDecoderLayer(
+                TransformerDecoderLayer( # decoder解码层
                     hidden_channel, num_heads, ffn_channel, dropout, activation,
-                    self_posembed=PositionEmbeddingLearned(2, hidden_channel),
-                    cross_posembed=PositionEmbeddingLearned(2, hidden_channel),
+                    self_posembed=PositionEmbeddingLearned(2, hidden_channel), # self-attention的位置编码层，输入维度2，输出维度128
+                    cross_posembed=PositionEmbeddingLearned(2, hidden_channel), # cross-attention的位置编码层，输入维度2，输出维度128
                 ))
 
         # Prediction Head
@@ -722,14 +723,14 @@ class TransFusionHead(nn.Module):
                 bias=bias,
             )
             self.heatmap_head_img = copy.deepcopy(self.heatmap_head)
-            # transformer decoder layers for img fusion
+            # transformer decoder layers for img fusion 第二个decoder，使用lidar和img的数据输出最终结果
             self.decoder.append(
                 TransformerDecoderLayer(
                     hidden_channel, num_heads, ffn_channel, dropout, activation,
                     self_posembed=PositionEmbeddingLearned(2, hidden_channel),
                     cross_posembed=PositionEmbeddingLearned(2, hidden_channel),
                 ))
-            # cross-attention only layers for projecting img feature onto BEV
+            # cross-attention only layers for projecting img feature onto BEV 图像特征投影到BEV空间上
             for i in range(num_views):
                 self.decoder.append(
                     TransformerDecoderLayer(
@@ -786,9 +787,9 @@ class TransFusionHead(nn.Module):
         if self.sampling:
             self.bbox_sampler = build_sampler(self.train_cfg.sampler)
         else:
-            self.bbox_sampler = PseudoSampler()
+            self.bbox_sampler = PseudoSampler() # 采样控制，防止样本失衡
         if isinstance(self.train_cfg.assigner, dict):
-            self.bbox_assigner = build_assigner(self.train_cfg.assigner)
+            self.bbox_assigner = build_assigner(self.train_cfg.assigner) # 样本分配（使用匈牙利算法），分配正负样本，防止样本失衡
         elif isinstance(self.train_cfg.assigner, list):
             self.bbox_assigner = [
                 build_assigner(res) for res in self.train_cfg.assigner

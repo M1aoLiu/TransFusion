@@ -38,22 +38,23 @@ class MVXTwoStageDetector(Base3DDetector):
         super(MVXTwoStageDetector, self).__init__()
 
         self.freeze_img = freeze_img
-        if pts_voxel_layer:
+        # 1.encoder层，将原始点云数据编码成voxel格式，当成2D进行处理
+        if pts_voxel_layer: # 创建vocel_layer
             self.pts_voxel_layer = Voxelization(**pts_voxel_layer)
-        if pts_voxel_encoder:
+        if pts_voxel_encoder: # 将点云表示成voxel形式
             self.pts_voxel_encoder = builder.build_voxel_encoder(
                 pts_voxel_encoder)
-        if pts_middle_encoder:
+        if pts_middle_encoder: # 使用SENCOND的SparseEncoder，提升计算效率
             self.pts_middle_encoder = builder.build_middle_encoder(
                 pts_middle_encoder)
-        if pts_backbone:
+        if pts_backbone: # 2.使用2Dbackbone提取voxel化的点云数据
             self.pts_backbone = builder.build_backbone(pts_backbone)
         if pts_fusion_layer:
             self.pts_fusion_layer = builder.build_fusion_layer(
                 pts_fusion_layer)
-        if pts_neck is not None:
+        if pts_neck is not None: # 3.特征融合和增强（此处为SECONDFPN，上采样并与原特征相加）
             self.pts_neck = builder.build_neck(pts_neck)
-        if pts_bbox_head:
+        if pts_bbox_head: #4.head层，为输出结果。主要有分类和回归两个分支。在这里面定义loss
             pts_train_cfg = train_cfg.pts if train_cfg else None
             pts_bbox_head.update(train_cfg=pts_train_cfg)
             pts_test_cfg = test_cfg.pts if test_cfg else None

@@ -4,7 +4,7 @@ class_names = [
     'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
 ] # 类别名称 
 voxel_size = [0.075, 0.075, 0.2] # voxel大小
-out_size_factor = 8
+out_size_factor = 8 # 输出数据大小：xyzwlhr
 evaluation = dict(interval=1) # 验证频率
 dataset_type = 'NuScenesDataset'
 data_root = 'data/nuscenes/'

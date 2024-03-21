@@ -14,7 +14,7 @@ class TransFusionBBoxCoder(BaseBBoxCoder):
                  score_threshold=None,
                  code_size=8,
                  ):
-        self.pc_range = pc_range
+        self.pc_range = pc_range # 
         self.out_size_factor = out_size_factor
         self.voxel_size = voxel_size
         self.post_center_range = post_center_range
