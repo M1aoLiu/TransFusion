@@ -78,15 +78,15 @@ class PointPillarsScatter(nn.Module):
                 device=voxel_features.device)
 
             # Only include non-empty pillars
-            batch_mask = coors[:, 0] == batch_itt
-            this_coors = coors[batch_mask, :]
-            indices = this_coors[:, 2] * self.nx + this_coors[:, 3]
+            batch_mask = coors[:, 0] == batch_itt # 确认该批数据哪些是batch_itt(即哪些数据是同一个点云里的)
+            this_coors = coors[batch_mask, :] # [batch_mask.sum(), 4] 选出来自同一个点云数据的坐标
+            indices = this_coors[:, 2] * self.nx + this_coors[:, 3] # 根据x,y偏移计算线性坐标值
             indices = indices.type(torch.long)
-            voxels = voxel_features[batch_mask, :]
-            voxels = voxels.t()
+            voxels = voxel_features[batch_mask, :] # 在voxel_features [N, 64]里选出同一点云的数据
+            voxels = voxels.t() # 转置，方便后面将数据放置到canvas上
 
             # Now scatter the blob back to the canvas.
-            canvas[:, indices] = voxels
+            canvas[:, indices] = voxels # 将数据放置到canvas上
 
             # Append to a list for later stacking.
             batch_canvas.append(canvas)

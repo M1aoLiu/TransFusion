@@ -101,7 +101,7 @@ class PillarFeatureNet(nn.Module):
             torch.Tensor: Features of pillars.
         """
         # voxel encoder训练时前向传播代码
-        features_ls = [features] # features:[N,32,4] N表示该数据有多少个点，32表示pillar最多有多少个点，4表示xyz+反射强度
+        features_ls = [features] # features:[N,32,4] N表示该数据有多少和Voxel，32表示pillar最多有多少个点，4表示xyz+反射强度
         # Find distance of x, y, and z from cluster center
         if self._with_cluster_center:
             points_mean = features[:, :, :3].sum(
@@ -145,10 +145,10 @@ class PillarFeatureNet(nn.Module):
         mask = torch.unsqueeze(mask, -1).type_as(features)
         features *= mask
 
-        for pfn in self.pfn_layers:
+        for pfn in self.pfn_layers: # [N,32,9] -> [N, 1， 64] 将每个voxel里的点云进行最大池化
             features = pfn(features, num_points)
 
-        return features.squeeze()
+        return features.squeeze() # [N, 1, 64] -> [N, 64]
 
 
 @VOXEL_ENCODERS.register_module()

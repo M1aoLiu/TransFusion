@@ -145,11 +145,11 @@ class Anchor3DHead(nn.Module, AnchorTrainMixin):
             tuple[torch.Tensor]: Contain score of each class, bbox \
                 regression and direction classification predictions.
         """
-        cls_score = self.conv_cls(x)
-        bbox_pred = self.conv_reg(x)
+        cls_score = self.conv_cls(x) # 分类卷积，384->3*6(3个类别，每个类别6个anchor(3个尺度，2个转角方向，共6个))
+        bbox_pred = self.conv_reg(x) # 回归卷积，384->6*7(6个anchor，anchor维度为7，xyzlwh+yaw)
         dir_cls_preds = None
         if self.use_direction_classifier:
-            dir_cls_preds = self.conv_dir_cls(x)
+            dir_cls_preds = self.conv_dir_cls(x) # 方向预测 384->6*2 6个anchor，2类预测
         return cls_score, bbox_pred, dir_cls_preds
 
     def forward(self, feats):

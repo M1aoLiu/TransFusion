@@ -156,7 +156,7 @@ class PFNLayer(nn.Module):
         Returns:
             torch.Tensor: Features of Pillars.
         """
-        x = self.linear(inputs)
+        x = self.linear(inputs) # 线性层，输入维度为处理后的数据(in_cahnnels=9),输出维度为64
         x = self.norm(x.permute(0, 2, 1).contiguous()).permute(0, 2,
                                                                1).contiguous()
         x = F.relu(x)
@@ -164,7 +164,7 @@ class PFNLayer(nn.Module):
         if self.mode == 'max':
             if aligned_distance is not None:
                 x = x.mul(aligned_distance.unsqueeze(-1))
-            x_max = torch.max(x, dim=1, keepdim=True)[0]
+            x_max = torch.max(x, dim=1, keepdim=True)[0] # 按照dim=1(即对一个voxel里的点云)进行最大池化
         elif self.mode == 'avg':
             if aligned_distance is not None:
                 x = x.mul(aligned_distance.unsqueeze(-1))

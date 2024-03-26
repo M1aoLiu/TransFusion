@@ -37,10 +37,16 @@ class VoxelNet(SingleStage3DDetector):
 
     def extract_feat(self, points, img_metas):
         """Extract features from points."""
-        voxels, num_points, coors = self.voxelize(points) # 体素化 points[i].shape: [N,4]
-        voxel_features = self.voxel_encoder(voxels, num_points, coors) # 将点云编码 voxel_features.shape:[N]
+        # 体素化 points[i].shape: [N,4] 
+        # voxels:[V,32,4] V表示总体素个数 num_points：[V,1] 每个体素里面有几个点，后续会填充 
+        # coors：voxel在原始场景的坐标 [N, 4] 4:(batch_idx, _, x, y)
+        voxels, num_points, coors = self.voxelize(points) 
+        # 将点云编码 voxel_features.shape:[V',64] 64表示已经编码
+        # [N,M,C] -> [N, 64]
+        voxel_features = self.voxel_encoder(voxels, num_points, coors)
         batch_size = coors[-1, 0].item() + 1
-        x = self.middle_encoder(voxel_features, coors, batch_size) # 中间编码层，根据具体方法实现不同
+        # 中间编码层，根据具体方法实现不同功能。此处为将[N, 64]变为伪图像[N', H, W]
+        x = self.middle_encoder(voxel_features, coors, batch_size) 
         x = self.backbone(x) # 使用backbone提取特征
         if self.with_neck:
             x = self.neck(x) # 使用neck融合和增强特征
