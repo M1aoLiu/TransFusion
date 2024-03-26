@@ -39,9 +39,9 @@ class MVXTwoStageDetector(Base3DDetector):
 
         self.freeze_img = freeze_img
         # 1.encoder层，将原始点云数据编码成voxel格式，当成2D进行处理
-        if pts_voxel_layer: # 创建vocel_layer
+        if pts_voxel_layer: # 初始化vocel_layer，为后续的voxel化提供类别
             self.pts_voxel_layer = Voxelization(**pts_voxel_layer)
-        if pts_voxel_encoder: # 将点云表示成voxel形式
+        if pts_voxel_encoder: # 将点云表示成voxel形式，即点云数据的voxel化
             self.pts_voxel_encoder = builder.build_voxel_encoder(
                 pts_voxel_encoder)
         if pts_middle_encoder: # 使用SENCOND的SparseEncoder，提升计算效率
@@ -62,9 +62,9 @@ class MVXTwoStageDetector(Base3DDetector):
             self.pts_bbox_head = builder.build_head(pts_bbox_head)
 
         if img_backbone:
-            self.img_backbone = builder.build_backbone(img_backbone)
+            self.img_backbone = builder.build_backbone(img_backbone) # 图像特征提取使用ResNet
         if img_neck is not None:
-            self.img_neck = builder.build_neck(img_neck)
+            self.img_neck = builder.build_neck(img_neck) # 图像Neck使用FPN进行融合与增强
         if img_rpn_head is not None:
             self.img_rpn_head = builder.build_head(img_rpn_head)
         if img_roi_head is not None:
