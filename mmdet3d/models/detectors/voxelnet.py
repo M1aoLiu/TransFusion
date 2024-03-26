@@ -23,7 +23,7 @@ class VoxelNet(SingleStage3DDetector):
                  train_cfg=None,
                  test_cfg=None,
                  pretrained=None):
-        super(VoxelNet, self).__init__(
+        super(VoxelNet, self).__init__( # 训练时，先调用父类init
             backbone=backbone,
             neck=neck,
             bbox_head=bbox_head,
@@ -37,13 +37,13 @@ class VoxelNet(SingleStage3DDetector):
 
     def extract_feat(self, points, img_metas):
         """Extract features from points."""
-        voxels, num_points, coors = self.voxelize(points)
-        voxel_features = self.voxel_encoder(voxels, num_points, coors)
+        voxels, num_points, coors = self.voxelize(points) # 体素化 points[i].shape: [N,4]
+        voxel_features = self.voxel_encoder(voxels, num_points, coors) # 将点云编码 voxel_features.shape:[N]
         batch_size = coors[-1, 0].item() + 1
-        x = self.middle_encoder(voxel_features, coors, batch_size)
-        x = self.backbone(x)
+        x = self.middle_encoder(voxel_features, coors, batch_size) # 中间编码层，根据具体方法实现不同
+        x = self.backbone(x) # 使用backbone提取特征
         if self.with_neck:
-            x = self.neck(x)
+            x = self.neck(x) # 使用neck融合和增强特征
         return x
 
     @torch.no_grad()
@@ -86,20 +86,20 @@ class VoxelNet(SingleStage3DDetector):
         Returns:
             dict: Losses of each branch.
         """
-        x = self.extract_feat(points, img_metas)
-        outs = self.bbox_head(x)
-        loss_inputs = outs + (gt_bboxes_3d, gt_labels_3d, img_metas)
-        losses = self.bbox_head.loss(
+        x = self.extract_feat(points, img_metas) # 提取特征
+        outs = self.bbox_head(x) # 调用bbox_head得到tensor预测结果
+        loss_inputs = outs + (gt_bboxes_3d, gt_labels_3d, img_metas) # 将预测结果与GT放在一起用于计算loss
+        losses = self.bbox_head.loss( # 使用bbox_head计算loss并返回
             *loss_inputs, gt_bboxes_ignore=gt_bboxes_ignore)
         return losses
 
     def simple_test(self, points, img_metas, imgs=None, rescale=False):
         """Test function without augmentaiton."""
-        x = self.extract_feat(points, img_metas)
-        outs = self.bbox_head(x)
-        bbox_list = self.bbox_head.get_bboxes(
+        x = self.extract_feat(points, img_metas) # 提取特征
+        outs = self.bbox_head(x) # 使用bbox_head得到输出结果
+        bbox_list = self.bbox_head.get_bboxes( # 得到bbox列表
             *outs, img_metas, rescale=rescale)
-        bbox_results = [
+        bbox_results = [ # 转换得到预测结果
             bbox3d2result(bboxes, scores, labels)
             for bboxes, scores, labels in bbox_list
         ]

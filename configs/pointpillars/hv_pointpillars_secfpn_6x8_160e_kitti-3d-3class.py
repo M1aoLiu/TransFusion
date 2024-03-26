@@ -4,6 +4,11 @@ _base_ = [
     '../_base_/schedules/cyclic_40e.py', '../_base_/default_runtime.py'
 ]
 
+"""
+标注格式：
+0     1   2    3      4,5,6,7      8,9,10          11,12,13,14
+类别 截断 遮挡 观测角度 2D边界框 3D坐标系下hwl(zyx) 相机坐标系下xyz坐标及转角
+"""
 point_cloud_range = [0, -39.68, -3, 69.12, 39.68, 1]
 # dataset settings
 data_root = 'data/kitti/'
@@ -21,7 +26,7 @@ db_sampler = dict(
 
 # PointPillars uses different augmentation hyper parameters
 train_pipeline = [
-    dict(type='LoadPointsFromFile', coord_type='LIDAR', load_dim=4, use_dim=4),
+    dict(type='LoadPointsFromFile', coord_type='LIDAR', load_dim=4, use_dim=4), # dim:xyz+激光反射率
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True),
     dict(type='ObjectSample', db_sampler=db_sampler),
     dict(

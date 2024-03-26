@@ -100,13 +100,14 @@ class PillarFeatureNet(nn.Module):
         Returns:
             torch.Tensor: Features of pillars.
         """
-        features_ls = [features]
+        # voxel encoder训练时前向传播代码
+        features_ls = [features] # features:[N,32,4] N表示该数据有多少个点，32表示pillar最多有多少个点，4表示xyz+反射强度
         # Find distance of x, y, and z from cluster center
         if self._with_cluster_center:
             points_mean = features[:, :, :3].sum(
                 dim=1, keepdim=True) / num_points.type_as(features).view(
-                    -1, 1, 1)
-            f_cluster = features[:, :, :3] - points_mean
+                    -1, 1, 1) # 计算该pillar内所有点的中心坐标
+            f_cluster = features[:, :, :3] - points_mean # 计算每个点与中心点的偏移
             features_ls.append(f_cluster)
 
         # Find distance of x, y, and z from pillar center
@@ -134,13 +135,13 @@ class PillarFeatureNet(nn.Module):
             points_dist = torch.norm(features[:, :, :3], 2, 2, keepdim=True)
             features_ls.append(points_dist)
 
-        # Combine together feature decorations
+        # Combine together feature decorations 将原始点坐标和计算偏移后的坐标合并
         features = torch.cat(features_ls, dim=-1)
         # The feature decorations were calculated without regard to whether
         # pillar was empty. Need to ensure that
         # empty pillars remain set to zeros.
         voxel_count = features.shape[1]
-        mask = get_paddings_indicator(num_points, voxel_count, axis=0)
+        mask = get_paddings_indicator(num_points, voxel_count, axis=0) # 32个点，多退少补
         mask = torch.unsqueeze(mask, -1).type_as(features)
         features *= mask
 
