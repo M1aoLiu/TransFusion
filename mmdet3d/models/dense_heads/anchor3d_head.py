@@ -139,17 +139,19 @@ class Anchor3DHead(nn.Module, AnchorTrainMixin):
         """Forward function on a single-scale feature map.
 
         Args:
-            x (torch.Tensor): Input features.
+            x (torch.Tensor): Input features.[B, 384, 496/2, 432/2]
 
         Returns:
             tuple[torch.Tensor]: Contain score of each class, bbox \
                 regression and direction classification predictions.
         """
+        # cls_score:[B, 18, 496/2, 432/2]
         cls_score = self.conv_cls(x) # 分类卷积，384->3*6(3个类别，每个类别6个anchor(3个尺度，2个转角方向，共6个))
+        # bbox_pred:[B, 42, 496/2, 432/2]
         bbox_pred = self.conv_reg(x) # 回归卷积，384->6*7(6个anchor，anchor维度为7，xyzlwh+yaw)
         dir_cls_preds = None
         if self.use_direction_classifier:
-            dir_cls_preds = self.conv_dir_cls(x) # 方向预测 384->6*2 6个anchor，2类预测
+            dir_cls_preds = self.conv_dir_cls(x) # 方向预测 384->6*2 6个anchor，2类预测 [B, 12, 496/2, 432/2]
         return cls_score, bbox_pred, dir_cls_preds
 
     def forward(self, feats):
@@ -330,10 +332,11 @@ class Anchor3DHead(nn.Module, AnchorTrainMixin):
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         assert len(featmap_sizes) == self.anchor_generator.num_levels
         device = cls_scores[0].device
-        anchor_list = self.get_anchors(
+        # 生成anchors并存在list里。anchor_list[i][0].shape:[1,248,216,3,2,7].代表featuremap大小，3个尺度，2个方向，7维anchor
+        anchor_list = self.get_anchors( 
             featmap_sizes, input_metas, device=device)
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
-        cls_reg_targets = self.anchor_target_3d(
+        cls_reg_targets = self.anchor_target_3d( # 得到每个anchor分类回归的目标值
             anchor_list,
             gt_bboxes,
             input_metas,
