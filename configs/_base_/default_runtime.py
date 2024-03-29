@@ -1,4 +1,4 @@
-checkpoint_config = dict(interval=1)
+checkpoint_config = dict(interval=5)
 # yapf:disable push
 # By default we use textlogger hook and tensorboard
 # For more loggers see
@@ -15,4 +15,4 @@ log_level = 'INFO'
 work_dir = None
 load_from = None
 resume_from = None
-workflow = [('train', 1)]
+workflow = [('train', 1), ('val', 1)]
