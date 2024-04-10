@@ -4,7 +4,7 @@ class_names = [
     'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
 ] # 类别名称 
 voxel_size = [0.075, 0.075, 0.2] # voxel大小
-out_size_factor = 8 # 输出数据大小：xyzwlhr
+out_size_factor = 8 # 下采样大小，输出图像为输入的1/8
 evaluation = dict(interval=1) # 验证频率
 dataset_type = 'NuScenesDataset'
 data_root = 'data/nuscenes/'
@@ -20,7 +20,7 @@ num_views = 6 # 使用相机视角的个数
 # 图像归一化参数
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
-    # 使用lidar数据的前5个维度(xyzr)
+    # 使用lidar数据的前5个维度(xyzr+未知维度)
     dict(
         type='LoadPointsFromFile',
         coord_type='LIDAR',
@@ -30,7 +30,7 @@ train_pipeline = [
     # 使用非关键帧sweeps
     dict(
         type='LoadPointsFromMultiSweeps',
-        sweeps_num=10,
+        sweeps_num=10, # 这表示我们要加载的扫描数量。在这里，我们加载了 10 个时间步的点云数据。
         use_dim=[0, 1, 2, 3, 4],
     ),
     # 加载Annotations
@@ -202,25 +202,25 @@ model = dict(
         use_conv_for_no_stride=True),
     pts_bbox_head=dict(
         type='TransFusionHead',
-        fuse_img=True,
+        fuse_img=True, # 表示是否融合图像信息。如果为 True，则将图像特征与 LiDAR 特征进行融合
         num_views=num_views,
-        in_channels_img=256,
+        in_channels_img=256, # 图像特征的输入通道数
         out_size_factor_img=4,
-        num_proposals=200,
+        num_proposals=200, # 预测的边界框数量
         auxiliary=True,
-        in_channels=256 * 2,
+        in_channels=256 * 2, # 输入通道数，考虑了图像和 LiDAR 特征
         hidden_channel=128,
         num_classes=len(class_names),
-        num_decoder_layers=1,
-        num_heads=8,
-        learnable_query_pos=False,
-        initialize_by_heatmap=True,
-        nms_kernel_size=3,
-        ffn_channel=256,
+        num_decoder_layers=1, # 解码器的层数
+        num_heads=8, # 注意力头的数量
+        learnable_query_pos=False, # 是否学习查询位置
+        initialize_by_heatmap=True, # 是否通过热图初始化
+        nms_kernel_size=3, # 非极大值抑制的卷积核大小
+        ffn_channel=256, # 前馈网络通道数
         dropout=0.1,
         bn_momentum=0.1,
         activation='relu',
-        common_heads=dict(center=(2, 2), height=(1, 2), dim=(3, 2), rot=(2, 2), vel=(2, 2)),
+        common_heads=dict(center=(2, 2), height=(1, 2), dim=(3, 2), rot=(2, 2), vel=(2, 2)), # 包含不同任务的头部信息
         bbox_coder=dict(
             type='TransFusionBBoxCoder',
             pc_range=point_cloud_range[:2],
