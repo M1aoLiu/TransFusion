@@ -220,7 +220,10 @@ model = dict(
         dropout=0.1,
         bn_momentum=0.1,
         activation='relu',
-        common_heads=dict(center=(2, 2), height=(1, 2), dim=(3, 2), rot=(2, 2), vel=(2, 2)), # 包含不同任务的头部信息
+        # 在三维目标检测中，我们通常需要预测多个目标属性，例如目标的中心点、高度、宽度、深度、旋转角度、速度等。
+        # 这些属性通常被称为“头部”（heads），每个头部负责预测一个特定的目标属性。
+        # # 包含不同任务的头部信息
+        common_heads=dict(center=(2, 2), height=(1, 2), dim=(3, 2), rot=(2, 2), vel=(2, 2)), 
         bbox_coder=dict(
             type='TransFusionBBoxCoder',
             pc_range=point_cloud_range[:2],
@@ -286,7 +289,7 @@ work_dir = None
 # load_from = 'checkpoints/fusion_voxel0075_R50.pth'
 load_from = None
 resume_from = None
-workflow = [('train', 1)]
+workflow = [('train', 1)] # 循环迭代进行。此处为循环训练1个epoch，如果为[('train', 1),('val', 1)]则为训练1epoch验证1epoch循环进行
 gpu_ids = range(0, 1)
 freeze_lidar_components = True
 find_unused_parameters = True
