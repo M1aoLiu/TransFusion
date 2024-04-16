@@ -222,7 +222,7 @@ model = dict(
         activation='relu',
         # 在三维目标检测中，我们通常需要预测多个目标属性，例如目标的中心点、高度、宽度、深度、旋转角度、速度等。
         # 这些属性通常被称为“头部”（heads），每个头部负责预测一个特定的目标属性。
-        # # 包含不同任务的头部信息
+        # 包含不同任务的头部信息
         common_heads=dict(center=(2, 2), height=(1, 2), dim=(3, 2), rot=(2, 2), vel=(2, 2)), 
         bbox_coder=dict(
             type='TransFusionBBoxCoder',

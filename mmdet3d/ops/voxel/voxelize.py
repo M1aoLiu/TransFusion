@@ -48,7 +48,7 @@ class _Voxelization(Function):
             coors = points.new_zeros(size=(max_voxels, 3), dtype=torch.int)
             num_points_per_voxel = points.new_zeros(
                 size=(max_voxels, ), dtype=torch.int)
-            voxel_num = hard_voxelize(points, voxels, coors,
+            voxel_num = hard_voxelize(points, voxels, coors, # 进行体素化
                                       num_points_per_voxel, voxel_size,
                                       coors_range, max_points, max_voxels, 3)
             # select the valid voxels
@@ -110,7 +110,7 @@ class Voxelization(nn.Module):
         else:
             max_voxels = self.max_voxels[1]
 
-        return voxelization(input, self.voxel_size, self.point_cloud_range,
+        return voxelization(input, self.voxel_size, self.point_cloud_range, # 进行体素化
                             self.max_num_points, max_voxels)
 
     def __repr__(self):

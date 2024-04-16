@@ -39,7 +39,7 @@ class HardSimpleVFE(nn.Module):
         Returns:
             torch.Tensor: Mean of points inside each voxel in shape (N, 3(4))
         """
-        points_mean = features[:, :, :self.num_features].sum(
+        points_mean = features[:, :, :self.num_features].sum( # 计算每个voxel内点的均值，并返回
             dim=1, keepdim=False) / num_points.type_as(features).view(-1, 1)
         return points_mean.contiguous()
 
