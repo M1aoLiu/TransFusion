@@ -33,7 +33,7 @@ def create_nuscenes_infos(root_path,
             Default: 10
     """
     from nuscenes.nuscenes import NuScenes
-    nusc = NuScenes(version=version, dataroot=root_path, verbose=True)
+    nusc = NuScenes(version=version, dataroot=root_path, verbose=True) # 根据路径读取数据集
     from nuscenes.utils import splits
     available_vers = ['v1.0-trainval', 'v1.0-test', 'v1.0-mini']
     assert version in available_vers
@@ -49,7 +49,7 @@ def create_nuscenes_infos(root_path,
     else:
         raise ValueError('unknown')
 
-    # filter existing scenes.
+    # filter existing scenes. 获取有效的场景，如mini中只有10个Scenes
     available_scenes = get_available_scenes(nusc)
     available_scene_names = [s['name'] for s in available_scenes]
     train_scenes = list(
@@ -164,12 +164,12 @@ def _fill_trainval_infos(nusc,
 
     for sample in mmcv.track_iter_progress(nusc.sample):
         lidar_token = sample['data']['LIDAR_TOP']
-        # 雷达数据
+        # sample_data数据
         sd_rec = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
-        # 校准传感器数据
+        # 校准传感器数据，描述传感器在车辆上安置的外参和内参矩阵等信息的记录。所有外参都是相对于车辆自身坐标系的 sensor -> ego
         cs_record = nusc.get('calibrated_sensor',
                              sd_rec['calibrated_sensor_token'])
-        # 车辆姿势：旋转角度和平移
+        # 车辆姿势：旋转角度和平移.这是一个描述车辆位姿的记录，包括车辆的位置和方向。它通常与自车位姿相关联，用于定位车辆在世界坐标系中的位置. ego -> global
         pose_record = nusc.get('ego_pose', sd_rec['ego_pose_token'])
         lidar_path, boxes, _ = nusc.get_sample_data(lidar_token)
 
@@ -216,7 +216,7 @@ def _fill_trainval_infos(nusc,
         e2g_r_mat = Quaternion(e2g_r).rotation_matrix
 
         # obtain 6 image's information per frame
-        camera_types = [
+        camera_types = [ # 1.3.2 创建cam对应的infos字典
             'CAM_FRONT',
             'CAM_FRONT_RIGHT',
             'CAM_FRONT_LEFT',
@@ -228,13 +228,13 @@ def _fill_trainval_infos(nusc,
             cam_token = sample['data'][cam]
             # 根据cam_token获取对应的图像路径和相机内参
             cam_path, _, cam_intrinsic = nusc.get_sample_data(cam_token)
-            # 将相机传感器坐标转换成顶部的激光雷达坐标
+            # 1.3.3 创建cam_info，将相机传感器坐标转换成顶部的激光雷达坐标
             cam_info = obtain_sensor2top(nusc, cam_token, l2e_t, l2e_r_mat,
                                          e2g_t, e2g_r_mat, cam)
             cam_info.update(cam_intrinsic=cam_intrinsic)
             info['cams'].update({cam: cam_info})
 
-        # obtain sweeps for a single key-frame
+        # obtain sweeps for a single key-frame 1.3.4 
         sd_rec = nusc.get('sample_data', sample['data']['LIDAR_TOP'])
         sweeps = []
         while len(sweeps) < max_sweeps:
@@ -248,7 +248,7 @@ def _fill_trainval_infos(nusc,
             else:
                 break
         info['sweeps'] = sweeps
-        # obtain annotation
+        # obtain annotation 1.3.5 获取annos
         if not test:
             annotations = [
                 nusc.get('sample_annotation', token)
@@ -356,17 +356,17 @@ def obtain_sensor2top(nusc,
         'ego2global_rotation': pose_record['rotation'],
         'timestamp': sd_rec['timestamp']
     }
-    l2e_r_s = sweep['sensor2ego_rotation']
+    l2e_r_s = sweep['sensor2ego_rotation'] # [1,4] 表示从传感器坐标系到车辆坐标系的旋转,描述了传感器相对于车辆的方向
     l2e_t_s = sweep['sensor2ego_translation']
     e2g_r_s = sweep['ego2global_rotation']
     e2g_t_s = sweep['ego2global_translation']
 
     # obtain the RT from sensor to Top LiDAR
-    # sweep->ego->global->ego'->lidar
-    l2e_r_s_mat = Quaternion(l2e_r_s).rotation_matrix
+    # sweep->ego->global->ego->lidar
+    l2e_r_s_mat = Quaternion(l2e_r_s).rotation_matrix # [3, 3] 是一个旋转矩阵，表示从传感器坐标系到车辆坐标系的旋转.通过将 l2e_r_s 转换为旋转矩阵，我们可以更方便地进行旋转操作
     e2g_r_s_mat = Quaternion(e2g_r_s).rotation_matrix
-    R = (l2e_r_s_mat.T @ e2g_r_s_mat.T) @ (
-        np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(l2e_r_mat).T)
+    R = (l2e_r_s_mat.T @ e2g_r_s_mat.T) @ ( # cam的(sweep) -> ego -> global
+        np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(l2e_r_mat).T) # global -> ego ->lidar
     T = (l2e_t_s @ e2g_r_s_mat.T + e2g_t_s) @ (
         np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(l2e_r_mat).T)
     T -= e2g_t @ (np.linalg.inv(e2g_r_mat).T @ np.linalg.inv(l2e_r_mat).T
@@ -393,7 +393,7 @@ def export_2d_annotation(root_path, info_path, version):
         'CAM_BACK_LEFT',
         'CAM_BACK_RIGHT',
     ]
-    nusc_infos = mmcv.load(info_path)['infos']
+    nusc_infos = mmcv.load(info_path)['infos'] # 2.1 读取train or val.pkl里面的的infos信息(里面包含annos信息)
     nusc = NuScenes(version=version, dataroot=root_path, verbose=True)
     # info_2d_list = []
     cat2Ids = [
@@ -402,10 +402,10 @@ def export_2d_annotation(root_path, info_path, version):
     ]
     coco_ann_id = 0
     coco_2d_dict = dict(annotations=[], images=[], categories=cat2Ids)
-    for info in mmcv.track_iter_progress(nusc_infos):
+    for info in mmcv.track_iter_progress(nusc_infos): # 遍历
         for cam in camera_types:
-            cam_info = info['cams'][cam]
-            coco_infos = get_2d_boxes(
+            cam_info = info['cams'][cam] # 先找到该相机对应的cam_info
+            coco_infos = get_2d_boxes( # 2.2 将annos转换成coco格式
                 nusc,
                 cam_info['sample_data_token'],
                 visibilities=['', '1', '2', '3', '4'])
@@ -446,7 +446,7 @@ def get_2d_boxes(nusc, sample_data_token: str,
     assert sd_rec[
         'sensor_modality'] == 'camera', 'Error: get_2d_boxes only works' \
         ' for camera sample_data!'
-    if not sd_rec['is_key_frame']:
+    if not sd_rec['is_key_frame']: # 只有关键帧才有annos，因此非关键帧报错
         raise ValueError(
             'The 2D re-projections are available only for keyframes.')
 
@@ -462,7 +462,7 @@ def get_2d_boxes(nusc, sample_data_token: str,
     ann_recs = [
         nusc.get('sample_annotation', token) for token in s_rec['anns']
     ]
-    ann_recs = [
+    ann_recs = [ # 2.2.1 过滤掉不在visibility_token里的annos
         ann_rec for ann_rec in ann_recs
         if (ann_rec['visibility_token'] in visibilities)
     ]
@@ -477,25 +477,25 @@ def get_2d_boxes(nusc, sample_data_token: str,
         # Get the box in global coordinates.
         box = nusc.get_box(ann_rec['token'])
 
-        # Move them to the ego-pose frame.
+        # 2.2.2 Move them to the ego-pose frame.    global = R*ego + T 因此此处为ego = R.inverse * (global - T)
         box.translate(-np.array(pose_rec['translation']))
         box.rotate(Quaternion(pose_rec['rotation']).inverse)
 
-        # Move them to the calibrated sensor frame.
+        # Move them to the calibrated sensor frame.   此处同理，不同的是上面用的是位姿矩阵，此处用的是外参矩阵
         box.translate(-np.array(cs_rec['translation']))
         box.rotate(Quaternion(cs_rec['rotation']).inverse)
 
         # Filter out the corners that are not in front of the calibrated
         # sensor.
-        corners_3d = box.corners()
-        in_front = np.argwhere(corners_3d[2, :] > 0).flatten()
+        corners_3d = box.corners() # [3, 8] 3代表xyz坐标,8代表3d框的8个角点
+        in_front = np.argwhere(corners_3d[2, :] > 0).flatten() # 此处是相机的坐标系(前面两步已经从global -> ego -> cam)，因此正前方为z轴
         corners_3d = corners_3d[:, in_front]
 
-        # Project 3d box to 2d.
+        # 2.2.3 Project 3d box to 2d. 使用内参矩阵
         corner_coords = view_points(corners_3d, camera_intrinsic,
                                     True).T[:, :2].tolist()
 
-        # Keep only corners that fall within the image.
+        # 2.2.4 Keep only corners that fall within the image.
         final_coords = post_process_coords(corner_coords)
 
         # Skip if the convex hull of the re-projected corners

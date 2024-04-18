@@ -141,7 +141,7 @@ def create_groundtruth_database(dataset_class_name,
             Default: False.
     """
     print(f'Create GT Database of {dataset_class_name}')
-    dataset_cfg = dict(
+    dataset_cfg = dict( # 3.1 创建dataset_cfg
         type=dataset_class_name, data_root=data_path, ann_file=info_path)
     if dataset_class_name == 'KittiDataset':
         file_client_args = dict(backend='disk')
@@ -214,7 +214,7 @@ def create_groundtruth_database(dataset_class_name,
                     file_client_args=file_client_args)
             ])
 
-    dataset = build_dataset(dataset_cfg)
+    dataset = build_dataset(dataset_cfg) # 3.2 创建数据集
 
     if database_save_path is None:
         database_save_path = osp.join(data_path, f'{info_prefix}_gt_database')
