@@ -20,7 +20,7 @@ num_views = 6 # 使用相机视角的个数
 # 图像归一化参数
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 train_pipeline = [
-    # 使用lidar数据的前5个维度(xyzr+未知维度)
+    # 使用lidar数据的前5个维度(xyz+反射强度+激光雷达扫描环编号)
     dict(
         type='LoadPointsFromFile',
         coord_type='LIDAR',
@@ -59,9 +59,15 @@ train_pipeline = [
     dict(type='MyResize', img_scale=img_scale, keep_ratio=True),
     # 图像归一化
     dict(type='MyNormalize', **img_norm_cfg),
-    # 填充padding
+    # 填充图像padding，确保能被32整除
     dict(type='MyPad', size_divisor=32),
+    # 不同数据项的尺寸可能不一致，例如点云中点的数量、真实标注框的尺寸.
+    # DefaultFormatBundle3D 的目标是将这些不同尺寸的数据项统一格式化，以便后续处理.
+    # 为了处理不同尺寸的数据，mmdetection3d 引入了 DataContainer 类型。
+    # DataContainer 可以帮助收集和分发不同尺寸的数据
     dict(type='DefaultFormatBundle3D', class_names=class_names),
+    # 在目标检测任务中，我们需要将不同数据项（例如点云、真实的 3D 边界框、类别标签等）整合到一起，以便输入到模型中。
+    # Collect3D 的目标是从不同数据源中收集这些数据项('points', 'img', 'gt_bboxes_3d', 'gt_labels_3d')，并将它们组织成一个统一的数据结构
     dict(type='Collect3D', keys=['points', 'img', 'gt_bboxes_3d', 'gt_labels_3d'])
 ]
 test_pipeline = [
