@@ -39,7 +39,7 @@ class VoxelNet(SingleStage3DDetector):
         """Extract features from points."""
         # 体素化 points[i].shape: [N,4] 
         # voxels:[V,32,4] V表示总体素个数 num_points：[V,1] 每个体素里面有几个点，后续会填充 
-        # coors：voxel在原始场景的坐标 [N, 4] 4:(batch_idx, _, x, y)
+        # coors：voxel在原始场景的坐标 [N, 4] 4:(batch_idx, z, y, x)
         voxels, num_points, coors = self.voxelize(points) 
         # 将点云编码 voxel_features.shape:[V',64] 64表示已经编码
         # [N,M,C] -> [N, 64]

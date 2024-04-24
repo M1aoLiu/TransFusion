@@ -4,7 +4,7 @@ class_names = [
     'motorcycle', 'bicycle', 'pedestrian', 'traffic_cone'
 ] # 类别名称 
 voxel_size = [0.075, 0.075, 0.2] # voxel大小
-out_size_factor = 8 # 下采样大小，输出图像为输入的1/8
+out_size_factor = 8 # 下采样大小，输出图像为输入的1/8 对应后面的out_indices和num_stages(原图，以及3次下采样的图)
 evaluation = dict(interval=1) # 验证频率
 dataset_type = 'NuScenesDataset'
 data_root = 'data/nuscenes/'
@@ -160,8 +160,8 @@ model = dict(
     img_backbone=dict(
         type='ResNet',
         depth=50,
-        num_stages=4,
-        out_indices=(0, 1, 2, 3),
+        num_stages=4, #  ResNet50,特征提取后输出结果有4层不同大小的features 
+        out_indices=(0, 1, 2, 3), # 此处为4层输出特征图的索引
         frozen_stages=1,
         norm_cfg=dict(type='BN', requires_grad=True),
         norm_eval=True,
@@ -171,7 +171,7 @@ model = dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
-        num_outs=5),
+        num_outs=5), # num_outs表示FPN图像特征融合模块的输出数量，用于更好地捕捉不同尺度的目标
     pts_voxel_layer=dict(
         max_num_points=10, # 一个voxel最多10个点
         voxel_size=voxel_size,
@@ -184,7 +184,7 @@ model = dict(
     pts_middle_encoder=dict(
         type='SparseEncoder',
         in_channels=5,
-        sparse_shape=[41, 1440, 1440],
+        sparse_shape=[41, 1440, 1440], # 描述了一个具有41层深度和1440x1440分辨率的稀疏点云,依次表示z,y,x方向的体素数
         output_channels=128,
         order=('conv', 'norm', 'act'),
         encoder_channels=((16, 16, 32), (32, 32, 64), (64, 64, 128), (128, 128)),
