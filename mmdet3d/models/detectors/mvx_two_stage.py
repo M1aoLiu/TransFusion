@@ -186,7 +186,7 @@ class MVXTwoStageDetector(Base3DDetector):
         return hasattr(self,
                        'middle_encoder') and self.middle_encoder is not None
 
-    def extract_img_feat(self, img, img_metas):
+    def extract_img_feat(self, img, img_metas): # 1.1 提取图像特征
         """Extract features of images."""
         if self.with_img_backbone and img is not None:
             input_shape = img.shape[-2:]

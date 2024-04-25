@@ -39,8 +39,8 @@ class TransFusionDetector(MVXTwoStageDetector):
 
     def extract_img_feat(self, img, img_metas):
         """Extract features of images."""
-        if self.with_img_backbone and img is not None:
-            input_shape = img.shape[-2:]
+        if self.with_img_backbone and img is not None: # 1.1 提取图像特征
+            input_shape = img.shape[-2:] # img.shape: [B, num_views(6个视角), C, H, W]
             # update real input shape of each single img
             for img_meta in img_metas:
                 img_meta.update(input_shape=input_shape)
@@ -50,10 +50,10 @@ class TransFusionDetector(MVXTwoStageDetector):
             elif img.dim() == 5 and img.size(0) > 1:
                 B, N, C, H, W = img.size()
                 img = img.view(B * N, C, H, W)
-            img_feats = self.img_backbone(img.float()) # resnet提取图像特征
+            img_feats = self.img_backbone(img.float()) # resnet50提取图像特征
         else:
             return None
-        if self.with_img_neck:
+        if self.with_img_neck: # 1.2 使用fpn融合图像特征
             img_feats = self.img_neck(img_feats)
         return img_feats
 
@@ -61,21 +61,21 @@ class TransFusionDetector(MVXTwoStageDetector):
         """Extract features of points."""
         if not self.with_pts_bbox:
             return None
-        # 1.对点云进行体素化
-        # voxels:[N, M(), C(5)] 体素化后的特征表示。 N:非空voxel的个数 M:每个voxel最多多少个点 C:数据维度
+        # 1.3.1 对点云进行体素化
+        # voxels:[N, M(10), C(5)] 体素化后的特征表示。 N:对原始N过滤后剩下的非空voxel的个数 M:每个voxel最多多少个点 C:数据维度
         # num_points: [N, 1] 每个voxel里面有多少个点
-        # coors:[N, 4] 体素的坐标表示 4:(batch_idx, x, y, z) batch_idx表示该体素是该batch中第几个数据的体素
-        voxels, num_points, coors = self.voxelize(pts) 
-        # 2.使用HardSimpleVFE(一种体素编码器)将体素内的点取平均作为体素特征。voxel_features:[N, C]
+        # coors:[N, 4] 体素的坐标表示 4:(batch_idx, x, y, z) batch_idx表示该体素坐标是该batch中第几个数据的体素坐标
+        voxels, num_points, coors = self.voxelize(pts) # pts:[N ,(C)5] 
+        # 1.3.2 使用HardSimpleVFE(一种体素编码器)将体素内的点取平均作为体素特征。voxel_features:[N, C]
         voxel_features = self.pts_voxel_encoder(voxels, num_points, coors,
                                                 )
-        batch_size = coors[-1, 0] + 1
-        # 3.使用SparseEncoder(一种中间编码器)对pts_voxel_encoder的结果进行编码，得到BEV特征图 x：[B, C', H, W] 此时变成了伪2维图像
+        batch_size = coors[-1, 0] + 1 # 取得最后一个数据的batch_idx + 1即为batch_size
+        # 1.3.3 使用SparseEncoder(一种中间编码器)对pts_voxel_encoder的结果进行编码，得到BEV特征图 x：[B, C', H, W] 此时变成了伪2维图像
         x = self.pts_middle_encoder(voxel_features, coors, batch_size)
-        # 4.使用主干网络SECOND对上面的伪2维图像进行特征提取，可搭配体素操作（如HardSimpleVFE + SparseEncoder）或柱体操作（如PillarFeatureNet + PointPillarsScatter）
+        # 1.3.4 使用主干网络SECOND对上面的伪2维图像进行特征提取，可搭配体素操作（如HardSimpleVFE + SparseEncoder）或柱体操作（如PillarFeatureNet + PointPillarsScatter）
         x = self.pts_backbone(x)
         if self.with_pts_neck:
-        # 5.使用Neck(SECONDFPN)进行特征融合
+        # 1.3.5 使用Neck(SECONDFPN)进行特征融合
             x = self.pts_neck(x)
         return x
 
@@ -93,7 +93,7 @@ class TransFusionDetector(MVXTwoStageDetector):
         """
         voxels, coors, num_points = [], [], []
         for res in points:
-            res_voxels, res_coors, res_num_points = self.pts_voxel_layer(res)
+            res_voxels, res_coors, res_num_points = self.pts_voxel_layer(res) # 1.3.1 体素化，返回结果
             voxels.append(res_voxels)
             coors.append(res_coors)
             num_points.append(res_num_points)
@@ -101,7 +101,7 @@ class TransFusionDetector(MVXTwoStageDetector):
         num_points = torch.cat(num_points, dim=0)
         coors_batch = []
         for i, coor in enumerate(coors):
-            coor_pad = F.pad(coor, (1, 0), mode='constant', value=i)
+            coor_pad = F.pad(coor, (1, 0), mode='constant', value=i) # 区分是来自同一个batch的第几个数据
             coors_batch.append(coor_pad)
         coors_batch = torch.cat(coors_batch, dim=0)
         return voxels, num_points, coors_batch
@@ -141,7 +141,7 @@ class TransFusionDetector(MVXTwoStageDetector):
         Returns:
             dict: Losses of different branches.
         """
-        img_feats, pts_feats = self.extract_feat(
+        img_feats, pts_feats = self.extract_feat( # 1.提取特征
             points, img=img, img_metas=img_metas)
         losses = dict()
         if pts_feats:

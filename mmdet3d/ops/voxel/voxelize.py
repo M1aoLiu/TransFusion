@@ -110,7 +110,7 @@ class Voxelization(nn.Module):
         else:
             max_voxels = self.max_voxels[1]
 
-        return voxelization(input, self.voxel_size, self.point_cloud_range, # 进行体素化
+        return voxelization(input, self.voxel_size, self.point_cloud_range, # 1.3.1 进行体素化
                             self.max_num_points, max_voxels)
 
     def __repr__(self):

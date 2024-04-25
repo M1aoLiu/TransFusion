@@ -122,7 +122,7 @@ class SparseEncoder(nn.Module):
         spatial_features = out.dense()
 
         N, C, D, H, W = spatial_features.shape
-        spatial_features = spatial_features.view(N, C * D, H, W)
+        spatial_features = spatial_features.view(N, C * D, H, W) # 1.3.3 将得到的密集体素表示转换成伪图像(N, C', H, W)
 
         return spatial_features
 
