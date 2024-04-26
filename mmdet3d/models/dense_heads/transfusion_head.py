@@ -699,7 +699,7 @@ class TransFusionHead(nn.Module):
             self.decoder.append(
                 TransformerDecoderLayer( # decoder解码层
                     hidden_channel, num_heads, ffn_channel, dropout, activation,
-                    self_posembed=PositionEmbeddingLearned(2, hidden_channel), # self-attention的位置编码层，输入维度2，输出维度128
+                    self_posembed=PositionEmbeddingLearned(2, hidden_channel), # self-attention的位置编码层，输入维度2(此时都在BEV下，只有x,y维度)，输出维度128
                     cross_posembed=PositionEmbeddingLearned(2, hidden_channel), # cross-attention的位置编码层，输入维度2，输出维度128
                 ))
 
@@ -751,12 +751,12 @@ class TransFusionHead(nn.Module):
         # Position Embedding for Cross-Attention, which is re-used during training
         x_size = self.test_cfg['grid_size'][0] // self.test_cfg['out_size_factor']
         y_size = self.test_cfg['grid_size'][1] // self.test_cfg['out_size_factor']
-        self.bev_pos = self.create_2D_grid(x_size, y_size)
+        self.bev_pos = self.create_2D_grid(x_size, y_size) # 2.1 得到bev视角下的网格
 
         self.img_feat_pos = None
         self.img_feat_collapsed_pos = None
 
-    def create_2D_grid(self, x_size, y_size):
+    def create_2D_grid(self, x_size, y_size): # 2.1.1 将pts的图像大小划分为若干BEV网格并返回坐标
         meshgrid = [[0, x_size - 1, x_size], [0, y_size - 1, y_size]]
         batch_y, batch_x = torch.meshgrid(*[torch.linspace(it[0], it[1], it[2]) for it in meshgrid])
         batch_x = batch_x + 0.5
@@ -805,32 +805,32 @@ class TransFusionHead(nn.Module):
         Returns:
             list[dict]: Output results for tasks.
         """
-        batch_size = inputs.shape[0]
-        lidar_feat = self.shared_conv(inputs)
+        batch_size = inputs.shape[0] # pts:-B, 512, H(180), W(180)] imgs: [B, 256, H(112), W(200)] imgs和pts的H，W大小不同
+        lidar_feat = self.shared_conv(inputs) # [B, C(512), H, W] -> [B, C(128), H, W]
 
         #################################
-        # image to BEV
+        # 2.1.1 image to BEV
         #################################
         lidar_feat_flatten = lidar_feat.view(batch_size, lidar_feat.shape[1], -1)  # [BS, C, H*W]
-        bev_pos = self.bev_pos.repeat(batch_size, 1, 1).to(lidar_feat.device)
+        bev_pos = self.bev_pos.repeat(batch_size, 1, 1).to(lidar_feat.device) # 得到pts图像在BEV视角下的BEV网格坐标(B, H*W, 2(x,y))
 
         if self.fuse_img:
-            img_feat = self.shared_conv_img(img_inputs)  # [BS * n_views, C, H, W]
+            img_feat = self.shared_conv_img(img_inputs)  # [BS * n_views, C(128), H, W] 此时imgs和pts的C相同
 
             img_h, img_w, num_channel = img_inputs.shape[-2], img_inputs.shape[-1], img_feat.shape[1]
             raw_img_feat = img_feat.view(batch_size, self.num_views, num_channel, img_h, img_w).permute(0, 2, 3, 1, 4) # [BS, C, H, n_views, W]
             img_feat = raw_img_feat.reshape(batch_size, num_channel, img_h, img_w * self.num_views)  # [BS, C, H, n_views*W]
-            img_feat_collapsed = img_feat.max(2).values
-            img_feat_collapsed = self.fc(img_feat_collapsed).view(batch_size, num_channel, img_w * self.num_views)
+            img_feat_collapsed = img_feat.max(2).values # 按照H这一维度取最大值
+            img_feat_collapsed = self.fc(img_feat_collapsed).view(batch_size, num_channel, img_w * self.num_views) # 进行一次全连接层提取特征 [BS, C, H, n_views*W]
 
             # positional encoding for image guided query initialization
-            if self.img_feat_collapsed_pos is None:
+            if self.img_feat_collapsed_pos is None: # 得到img图像在BEV视角下的BEV网格坐标(B, W*views, 2(x,y))
                 img_feat_collapsed_pos = self.img_feat_collapsed_pos = self.create_2D_grid(1, img_feat_collapsed.shape[-1]).to(img_feat.device)
             else:
                 img_feat_collapsed_pos = self.img_feat_collapsed_pos
 
             bev_feat = lidar_feat_flatten
-            for idx_view in range(self.num_views):
+            for idx_view in range(self.num_views): # 分别用pts和imgs的bev特征图进行注意力计算
                 bev_feat = self.decoder[2 + idx_view](bev_feat, img_feat_collapsed[..., img_w * idx_view:img_w * (idx_view + 1)], bev_pos, img_feat_collapsed_pos[:, img_w * idx_view:img_w * (idx_view + 1)])
 
         #################################
@@ -1042,7 +1042,7 @@ class TransFusionHead(nn.Module):
         """
         if img_feats is None:
             img_feats = [None]
-        res = multi_apply(self.forward_single, feats, img_feats, [img_metas])
+        res = multi_apply(self.forward_single, feats, img_feats, [img_metas]) # 2.1 TransFusionHead得到检测结果
         assert len(res) == 1, "only support one level features."
         return res
 
