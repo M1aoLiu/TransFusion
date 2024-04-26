@@ -144,7 +144,7 @@ class TransFusionDetector(MVXTwoStageDetector):
         img_feats, pts_feats = self.extract_feat( # 1.提取特征
             points, img=img, img_metas=img_metas)
         losses = dict()
-        if pts_feats:
+        if pts_feats: # 2.计算点云损失
             losses_pts = self.forward_pts_train(pts_feats, img_feats, gt_bboxes_3d,
                                                 gt_labels_3d, img_metas,
                                                 gt_bboxes_ignore)
@@ -182,7 +182,7 @@ class TransFusionDetector(MVXTwoStageDetector):
         Returns:
             dict: Losses of each branch.
         """
-        # 6.传入heads中，得到结果计算损失并返回
+        # 2. 传入heads中，得到结果计算损失并返回
         # 不同类别对应不同head，如目标的中心点、高度、宽度、深度、旋转角度、速度.这些属性通常被称为“头部”（heads），每个头部负责预测一个特定的目标属性。
         # 输入数据pts_feats，img_feats通常为颈部网络的输出
         # 输出结果为字典。外层元组长为任务数，内层列表长为尺度数，
