@@ -110,8 +110,8 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=4,
-    workers_per_gpu=4,
+    samples_per_gpu=1,
+    workers_per_gpu=2,
     train=dict(
         type='CBGSDataset',
         dataset=dict(
@@ -283,10 +283,10 @@ momentum_config = dict(
     target_ratio=(0.8947368421052632, 1),
     cyclic_times=1,
     step_ratio_up=0.4)
-total_epochs = 1
+total_epochs = 6
 checkpoint_config = dict(interval=1)
 log_config = dict(
-    interval=5,
+    interval=50,
     hooks=[dict(type='TextLoggerHook'),
            dict(type='TensorboardLoggerHook')])
 dist_params = dict(backend='nccl')
@@ -295,7 +295,7 @@ work_dir = None
 # load_from = 'checkpoints/fusion_voxel0075_R50.pth'
 load_from = None
 resume_from = None
-workflow = [('train', 1)] # 循环迭代进行。此处为循环训练1个epoch，如果为[('train', 1),('val', 1)]则为训练1epoch验证1epoch循环进行
+workflow = [('train', 1), ('val', 1)] # 循环迭代进行。此处为循环训练1个epoch，如果为[('train', 1),('val', 1)]则为训练1epoch验证1epoch循环进行
 gpu_ids = range(0, 1)
 freeze_lidar_components = True
 find_unused_parameters = True
